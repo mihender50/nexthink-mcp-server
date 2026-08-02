@@ -1,0 +1,47 @@
+# Pre-commit hooks for nexthink-mcp-server.
+#
+# Adapted from an internal repository's pre-commit config for this repo's
+# pure TypeScript/Node (ESM) stack. The Terraform (fmt/tflint/checkov),
+# spec-lint (scripts/spec-lint.cjs), and infra-specific gates are intentionally
+# omitted — this repo has no Terraform, no infra/tf, and no docs/ spec set.
+# They can be re-added if/when those assets land.
+#
+# Install once per clone:
+#   pip install pre-commit
+#   pre-commit install
+#   # trufflehog (secret scanner):
+#   #   macOS/Linux: brew install trufflehog
+#   #   Windows:     winget install trufflesecurity.trufflehog  (or) choco install trufflehog
+#
+# Run on demand:
+#   pre-commit run --all-files
+#
+# These are fast, commit-time gates. Heavier checks (typecheck, full test suite)
+# run in CI (.github/workflows/ci.yml); mirror them locally with:
+#   npm run typecheck && npm test
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=1024']
+      - id: check-json
+        exclude: ^(tsconfig.*\.json|\.vscode/.*\.json)$   # these allow comments (JSONC)
+      - id: check-yaml
+      - id: detect-private-key   # zero-dependency secret baseline (works without trufflehog)
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: trufflehog
+        name: trufflehog (secret scan)
+        description: >
+          Scans staged files for verified/unknown secrets before commit.
+          Install per the header above; if trufflehog is absent the hook errors
+          with an install hint (detect-private-key still provides a baseline).
+        entry: trufflehog git file://. --since-commit HEAD --no-update --fail --results=verified,unknown --exclude-paths=.trufflehogignore
+        language: system
+        pass_filenames: false

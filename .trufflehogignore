@@ -1,0 +1,9 @@
+# Paths excluded from trufflehog secret scanning (pre-commit hook).
+node_modules/
+dist/
+dist-admin/
+coverage/
+badges/
+package-lock.json
+tmp/
+.worktrees/
