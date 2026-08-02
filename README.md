@@ -1,5 +1,7 @@
 # Nexthink MCP Server
 
+[![CI](https://github.com/mihender50/nexthink-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/mihender50/nexthink-mcp-server/actions/workflows/ci.yml)
+
 An **enterprise-grade** [Model Context Protocol](https://modelcontextprotocol.io)
 (MCP) server that exposes **Nexthink** Digital Employee Experience (DEX)
 telemetry and automation to LLM agents. Built against the **MCP `2025-11-25`**
