@@ -19,6 +19,14 @@
 # These are fast, commit-time gates. Heavier checks (typecheck, full test suite)
 # run in CI (.github/workflows/ci.yml); mirror them locally with:
 #   npm run typecheck && npm test
+#
+# `.squad/` is a vendored framework (copied verbatim from the fleet) and
+# package-lock.json is generated — both are excluded from the hygiene hooks so
+# our gates stay focused on this repo's own source. The detect-private-key hit
+# in .squad/templates/skills/secret-handling is a documentation example, not a
+# real key.
+
+exclude: '^(\.squad/|package-lock\.json$|dist/)'
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks

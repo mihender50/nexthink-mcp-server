@@ -7,3 +7,4 @@ badges/
 package-lock.json
 tmp/
 .worktrees/
+.squad/
