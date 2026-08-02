@@ -1,7 +1,7 @@
 {
   "name": "nexthink-mcp-server",
-  "version": "1.0.0",
-  "description": "Model Context Protocol (MCP) server exposing Nexthink Digital Employee Experience (DEX) telemetry, NQL queries, Remote Actions, and engagement workflows to LLM agents.",
+  "version": "2.0.0",
+  "description": "Enterprise-grade Model Context Protocol (MCP) server exposing Nexthink DEX telemetry (NQL), Remote Actions, and engagement workflows to LLM agents. Targets MCP spec 2025-11-25 with pluggable auth for every Nexthink credential type.",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -21,6 +21,7 @@
     "dev": "tsx src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test test/*.test.ts",
+    "test:smoke": "npm run build && node test/smoke.mjs",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -30,11 +31,13 @@
     "dex",
     "nql",
     "llm",
-    "agent"
+    "agent",
+    "digital-employee-experience"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
-    "axios": "^1.7.9"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "axios": "^1.7.9",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

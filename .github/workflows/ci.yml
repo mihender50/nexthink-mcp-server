@@ -35,6 +35,9 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Smoke test (stdio MCP handshake)
+        run: node test/smoke.mjs
+
   pre-commit:
     name: Pre-commit hooks
     runs-on: ubuntu-latest

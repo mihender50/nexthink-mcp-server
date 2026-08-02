@@ -1,184 +1,280 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import {
-  CallToolRequestSchema,
-  ListResourcesRequestSchema,
-  ListToolsRequestSchema,
-  ReadResourceRequestSchema,
-  type CallToolResult,
-} from "@modelcontextprotocol/sdk/types.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 import type { NexthinkConfig } from "./config.js";
-import { NexthinkClient, NexthinkApiError } from "./nexthinkClient.js";
-import { RESOURCES } from "./resources.js";
-import { READ_TOOLS, WRITE_TOOLS } from "./tools.js";
+import type { NexthinkClient } from "./nexthink/client.js";
+import { NexthinkApiError, AuthError } from "./errors.js";
+import type { Logger } from "./logger.js";
+import { NQL_REFERENCE } from "./resources.js";
 
-const SERVER_NAME = "nexthink-mcp-server";
-const SERVER_VERSION = "1.0.0";
+export const SERVER_NAME = "nexthink-mcp-server";
+export const SERVER_VERSION = "2.0.0";
 
-function jsonResult(payload: unknown): CallToolResult {
-  return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
+/** Serialize any successful payload as both text and structured content. */
+function ok(payload: unknown): CallToolResult {
+  return {
+    content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+    structuredContent: payload as Record<string, unknown>,
+  };
 }
 
-function errorResult(err: unknown): CallToolResult {
+/** Map a thrown error into an MCP tool error result (surfaced to the model). */
+function fail(err: unknown, logger: Logger, tool: string): CallToolResult {
   let text: string;
   if (err instanceof NexthinkApiError) {
-    // Surface status + body so the LLM can self-correct (e.g. NQL 400 syntax).
-    text =
-      `Nexthink API Error${err.status ? ` [HTTP ${err.status}]` : ""}: ${err.message}`;
+    // Surface status + body so the model can self-correct (e.g. NQL 400).
+    text = `Nexthink API error${err.status ? ` [HTTP ${err.status}]` : ""}: ${err.message}`;
+  } else if (err instanceof AuthError) {
+    text = `Nexthink authentication error${err.status ? ` [HTTP ${err.status}]` : ""}: ${err.message}`;
   } else {
     text = `Error: ${err instanceof Error ? err.message : String(err)}`;
   }
+  logger.error("Tool call failed", { tool, error: text });
   return { isError: true, content: [{ type: "text", text }] };
 }
 
 /**
- * Builds a fully-wired MCP {@link Server} for a given Nexthink client + config.
- * Separated from transport/startup so it can be unit-tested in isolation.
+ * Builds a fully-wired {@link McpServer} using the modern registerTool API with
+ * Zod input + output schemas. Successful calls return `structuredContent`
+ * validated against the output schema (MCP 2025-11-25 structured tool output),
+ * with a JSON text fallback for text-only clients.
  */
-export function createServer(client: NexthinkClient, config: NexthinkConfig): Server {
-  const tools = config.readOnly ? [...READ_TOOLS] : [...READ_TOOLS, ...WRITE_TOOLS];
-
-  const server = new Server(
+export function createServer(
+  client: NexthinkClient,
+  config: NexthinkConfig,
+  logger: Logger
+): McpServer {
+  const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
-    { capabilities: { tools: {}, resources: {} } }
+    {
+      capabilities: { tools: {}, resources: {} },
+      instructions:
+        "Query Nexthink Digital Employee Experience telemetry via NQL and run " +
+        "authorized remediations. Read the nexthink://schema/nql-reference " +
+        "resource before writing NQL. Remote actions and workflows change state " +
+        "on real endpoints — confirm intent before invoking.",
+    }
   );
 
-  // ---- Resources ----------------------------------------------------------
-  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-    resources: RESOURCES.map(({ uri, name, mimeType, description }) => ({
-      uri,
-      name,
-      mimeType,
-      description,
-    })),
-  }));
-
-  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-    const match = RESOURCES.find((r) => r.uri === request.params.uri);
-    if (!match) {
-      throw new Error(`Resource not found: ${request.params.uri}`);
-    }
-    return {
+  // ---- Resource ----------------------------------------------------------
+  server.registerResource(
+    NQL_REFERENCE.name,
+    NQL_REFERENCE.uri,
+    {
+      title: NQL_REFERENCE.title,
+      description: NQL_REFERENCE.description,
+      mimeType: NQL_REFERENCE.mimeType,
+    },
+    async () => ({
       contents: [
-        { uri: match.uri, mimeType: match.mimeType, text: match.text },
+        {
+          uri: NQL_REFERENCE.uri,
+          mimeType: NQL_REFERENCE.mimeType,
+          text: NQL_REFERENCE.text,
+        },
       ],
-    };
-  });
+    })
+  );
 
-  // ---- Tools --------------------------------------------------------------
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
-
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: rawArgs } = request.params;
-    const args = (rawArgs ?? {}) as Record<string, unknown>;
-
-    try {
-      switch (name) {
-        case "execute_nql": {
-          const query = requireString(args, "query");
-          const limit = optionalNumber(args, "limit") ?? 100;
-          return jsonResult(await client.executeNql(query, limit));
-        }
-
-        case "export_nql_async": {
-          const query = requireString(args, "query");
-          const format = (optionalString(args, "format") ?? "json") as "csv" | "json";
-          const compression = (optionalString(args, "compression") ?? "gzip") as
-            | "gzip"
-            | "zstd";
-          return jsonResult(await client.exportNqlAsync(query, format, compression));
-        }
-
-        case "run_remote_action": {
-          if (config.readOnly) return readOnlyRejection(name);
-          const actionId = requireString(args, "action_id");
-          const deviceIds = requireStringArray(args, "device_ids");
-          const parameters = optionalStringMap(args, "parameters");
-          return jsonResult(
-            await client.runRemoteAction(actionId, deviceIds, parameters)
-          );
-        }
-
-        case "trigger_workflow": {
-          if (config.readOnly) return readOnlyRejection(name);
-          const workflowId = requireString(args, "workflow_id");
-          const userSids = requireStringArray(args, "target_user_sids");
-          const context = optionalStringMap(args, "context_variables");
-          return jsonResult(
-            await client.triggerWorkflow(workflowId, userSids, context)
-          );
-        }
-
-        default:
-          return errorResult(new Error(`Unknown tool: ${name}`));
+  // ---- Read-only tools ---------------------------------------------------
+  server.registerTool(
+    "execute_nql",
+    {
+      title: "Execute NQL Query",
+      description:
+        "Execute a Nexthink Query Language (NQL) query for real-time endpoint " +
+        "telemetry (device health, executions, crashes, connections, users). " +
+        "Read nexthink://schema/nql-reference first. Returns up to `limit` rows.",
+      inputSchema: {
+        query: z.string().describe("The NQL query to execute."),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(1000)
+          .optional()
+          .describe("Max rows (1-1000). Appended as `| limit N` if the query has none."),
+      },
+      outputSchema: {
+        total_rows: z.number().int(),
+        results: z.array(z.record(z.string(), z.any())),
+        query_id: z.string().optional(),
+        executed_query: z.string().optional(),
+        execution_datetime: z.string().optional(),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ query, limit }) => {
+      try {
+        return ok(await client.executeNql(query, limit));
+      } catch (err) {
+        return fail(err, logger, "execute_nql");
       }
-    } catch (err) {
-      return errorResult(err);
     }
-  });
+  );
+
+  server.registerTool(
+    "export_nql_async",
+    {
+      title: "Export NQL (Async)",
+      description:
+        "Schedule a bulk asynchronous NQL export (for >1000-row historical " +
+        "datasets). Returns an export id; poll it with get_nql_export_status.",
+      inputSchema: {
+        query: z.string().describe("The NQL query to export."),
+      },
+      outputSchema: {
+        export_id: z.string(),
+        status: z.string(),
+        raw: z.any().optional(),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ query }) => {
+      try {
+        return ok(await client.exportNqlAsync(query));
+      } catch (err) {
+        return fail(err, logger, "export_nql_async");
+      }
+    }
+  );
+
+  server.registerTool(
+    "get_nql_export_status",
+    {
+      title: "Get NQL Export Status",
+      description:
+        "Poll a previously scheduled NQL export by id. When complete, the result " +
+        "includes the download URL for the exported file.",
+      inputSchema: {
+        export_id: z.string().describe("The export id returned by export_nql_async."),
+      },
+      outputSchema: { result: z.any() },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ export_id }) => {
+      try {
+        return ok({ result: await client.getExportStatus(export_id) });
+      } catch (err) {
+        return fail(err, logger, "get_nql_export_status");
+      }
+    }
+  );
+
+  // ---- Mutating tools (skipped in read-only mode) ------------------------
+  if (!config.readOnly) {
+    server.registerTool(
+      "run_remote_action",
+      {
+        title: "Run Remote Action",
+        description:
+          "Trigger a pre-configured Nexthink Remote Action (PowerShell/Bash " +
+          "remediation) on target devices, identified by Collector id " +
+          "(device.collector.id in NQL). DESTRUCTIVE: changes state on real " +
+          "endpoints — clients SHOULD require human approval.",
+        inputSchema: {
+          remote_action_id: z
+            .string()
+            .describe("UID/identifier of the Remote Action to execute."),
+          devices: z
+            .array(z.string())
+            .min(1)
+            .describe("Target device Collector ids (device.collector.id)."),
+          params: z
+            .record(z.string(), z.string())
+            .optional()
+            .describe("Optional key-value parameters passed to the script."),
+          expires_in_minutes: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe("Optional execution expiry window in minutes."),
+          trigger_info: z
+            .object({
+              reason: z.string().optional(),
+              external_source: z.string().optional(),
+              external_reference: z.string().optional(),
+            })
+            .optional()
+            .describe("Optional provenance metadata for auditing."),
+        },
+        outputSchema: {
+          execution_id: z.string(),
+          status: z.string(),
+          target_count: z.number().int(),
+          raw: z.any().optional(),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          openWorldHint: true,
+        },
+      },
+      async ({ remote_action_id, devices, params, expires_in_minutes, trigger_info }) => {
+        try {
+          return ok(
+            await client.runRemoteAction({
+              remoteActionId: remote_action_id,
+              devices,
+              params,
+              expiresInMinutes: expires_in_minutes,
+              triggerInfo: trigger_info
+                ? {
+                    reason: trigger_info.reason,
+                    externalSource: trigger_info.external_source,
+                    externalReference: trigger_info.external_reference,
+                  }
+                : undefined,
+            })
+          );
+        } catch (err) {
+          return fail(err, logger, "run_remote_action");
+        }
+      }
+    );
+
+    server.registerTool(
+      "trigger_workflow",
+      {
+        title: "Trigger Workflow",
+        description:
+          "Trigger a Nexthink IT workflow / engagement campaign (e.g. prompt a " +
+          "user to reboot after patching). Affects end-user experience — clients " +
+          "SHOULD require human approval.",
+        inputSchema: {
+          workflow_id: z.string().describe("UID of the workflow to trigger."),
+          params: z
+            .record(z.string(), z.string())
+            .optional()
+            .describe("Optional key-value context passed into the workflow."),
+          devices: z
+            .array(z.string())
+            .optional()
+            .describe("Optional target device Collector ids."),
+        },
+        outputSchema: {
+          execution_id: z.string(),
+          status: z.string(),
+          raw: z.any().optional(),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          openWorldHint: true,
+        },
+      },
+      async ({ workflow_id, params, devices }) => {
+        try {
+          return ok(
+            await client.triggerWorkflow({ workflowId: workflow_id, params, devices })
+          );
+        } catch (err) {
+          return fail(err, logger, "trigger_workflow");
+        }
+      }
+    );
+  }
 
   return server;
 }
-
-function readOnlyRejection(tool: string): CallToolResult {
-  return errorResult(
-    new Error(
-      `Tool "${tool}" is disabled: server is running in read-only mode ` +
-        `(NEXTHINK_READ_ONLY=true).`
-    )
-  );
-}
-
-// ---- Argument validation helpers -----------------------------------------
-
-function requireString(args: Record<string, unknown>, key: string): string {
-  const v = args[key];
-  if (typeof v !== "string" || v.length === 0) {
-    throw new Error(`Missing or invalid required string argument: "${key}"`);
-  }
-  return v;
-}
-
-function optionalString(args: Record<string, unknown>, key: string): string | undefined {
-  const v = args[key];
-  if (v === undefined || v === null) return undefined;
-  if (typeof v !== "string") throw new Error(`Argument "${key}" must be a string`);
-  return v;
-}
-
-function optionalNumber(args: Record<string, unknown>, key: string): number | undefined {
-  const v = args[key];
-  if (v === undefined || v === null) return undefined;
-  if (typeof v !== "number" || !Number.isFinite(v)) {
-    throw new Error(`Argument "${key}" must be a number`);
-  }
-  return v;
-}
-
-function requireStringArray(args: Record<string, unknown>, key: string): string[] {
-  const v = args[key];
-  if (!Array.isArray(v) || v.length === 0) {
-    throw new Error(`Argument "${key}" must be a non-empty array of strings`);
-  }
-  if (!v.every((item) => typeof item === "string")) {
-    throw new Error(`All items in "${key}" must be strings`);
-  }
-  return v as string[];
-}
-
-function optionalStringMap(
-  args: Record<string, unknown>,
-  key: string
-): Record<string, string> {
-  const v = args[key];
-  if (v === undefined || v === null) return {};
-  if (typeof v !== "object" || Array.isArray(v)) {
-    throw new Error(`Argument "${key}" must be an object of string values`);
-  }
-  const out: Record<string, string> = {};
-  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
-    out[k] = typeof val === "string" ? val : String(val);
-  }
-  return out;
-}
-
-export { SERVER_NAME, SERVER_VERSION };
