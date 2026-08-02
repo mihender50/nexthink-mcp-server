@@ -37,7 +37,9 @@ stable spec (structured tool output, tool annotations, resources) on
 - **Region-aware**: derives the correct `*.api.<region>.nexthink.cloud` base and
   `<instance>-login.<region>...` token endpoint from instance + region.
 
-See [`docs/RESEARCH.md`](./docs/RESEARCH.md) for the sourced spec/API findings.
+See [`docs/CAPABILITIES.md`](./docs/CAPABILITIES.md) for the full capability
+matrix, and [`docs/RESEARCH.md`](./docs/RESEARCH.md) for the sourced spec/API
+findings.
 
 ## Tools
 
