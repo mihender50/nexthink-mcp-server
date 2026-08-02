@@ -33,6 +33,11 @@ Enterprise rebuild targeting the stable **MCP `2025-11-25`** specification.
 - NQL response transformer now handles **both** v2 (object rows) and v1
   (tabular) responses.
 - Upgraded `@modelcontextprotocol/sdk` to `^1.30.0`.
+- All dependencies on latest: TypeScript 7, Zod 4, tsx 4.23, `@types/node` 26,
+  axios 1.19. Node baseline raised to **≥ 22** (Node 20 is EOL); CI runs
+  Node 24 LTS.
+- `.squad/` instance state reset for this repository (agent histories,
+  decisions, learnings, loop state); framework and templates unchanged.
 
 ### Breaking
 - Config variables changed: prefer `NEXTHINK_INSTANCE` + `NEXTHINK_REGION`

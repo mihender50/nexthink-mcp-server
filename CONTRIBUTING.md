@@ -5,7 +5,7 @@ checks that must pass, and how the codebase is organized.
 
 ## Prerequisites
 
-- Node.js **≥ 20**
+- Node.js **≥ 22**
 - (optional) [`pre-commit`](https://pre-commit.com/) and
   [`trufflehog`](https://github.com/trufflesecurity/trufflehog) for local gates
 
