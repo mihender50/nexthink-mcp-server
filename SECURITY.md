@@ -34,4 +34,4 @@ This server is a credentialed bridge between an LLM agent and a Nexthink tenant,
 - Scope Nexthink API credentials to the minimum needed. If the agent only reads telemetry, do not grant remote-action permissions, and set `NEXTHINK_READ_ONLY=true`.
 - Use `NEXTHINK_ALLOWED_ACTIONS` as an allow-list whenever destructive tools are enabled. An empty value permits **any** Remote Action id.
 - Supply secrets through the environment only. Never commit `.env`. Logs go to stderr with known secret keys redacted, but treat `NEXTHINK_LOG_LEVEL=debug` output as sensitive regardless.
-- Pin the version you deploy. This package has not been exercised against a live Nexthink tenant by its maintainer; validate behaviour against your own instance before granting it production credentials.
+- Pin the version you deploy. Validate behaviour against your own instance, starting with `NEXTHINK_READ_ONLY=true`, before granting it production credentials.
