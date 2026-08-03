@@ -3,6 +3,14 @@
   "version": "2.0.0",
   "description": "Enterprise-grade Model Context Protocol (MCP) server exposing Nexthink DEX telemetry (NQL), Remote Actions, and engagement workflows to LLM agents. Targets MCP spec 2025-11-25 with pluggable auth for every Nexthink credential type.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mihender50/nexthink-mcp-server.git"
+  },
+  "homepage": "https://github.com/mihender50/nexthink-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/mihender50/nexthink-mcp-server/issues"
+  },
   "type": "module",
   "bin": {
     "nexthink-mcp-server": "dist/index.js"
