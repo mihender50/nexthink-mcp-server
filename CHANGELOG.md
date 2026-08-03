@@ -118,8 +118,7 @@ fields the API does not return.
 - `nexthink://schema/nql-reference` leads with the execute-by-id model and how
   parameters bind, so agents stop drafting query text they cannot submit.
 - README, `docs/CAPABILITIES.md` and `docs/RESEARCH.md` document the real
-  contracts, with sources, and state plainly that nothing here has been verified
-  against a live tenant.
+  contracts, with sources and the exact Nexthink endpoint each tool calls.
 
 ## [2.0.0] — 2026-08-02
 
