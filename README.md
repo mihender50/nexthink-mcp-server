@@ -1,5 +1,6 @@
 # Nexthink MCP Server
 
+[![CI](https://github.com/mihender50/nexthink-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/mihender50/nexthink-mcp-server/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/nexthink-mcp-server)](https://www.npmjs.com/package/nexthink-mcp-server)
 
 A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that

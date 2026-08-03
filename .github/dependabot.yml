@@ -19,7 +19,7 @@ updates:
       prefix: chore(deps)
       prefix-development: chore(dev-deps)
 
-  # Actions are pinned by major tag (actions/checkout@v4); this keeps them
+  # Actions are pinned by major tag (actions/checkout@v7); this keeps them
   # current and surfaces advisories in the publish pipeline, which holds
   # id-token: write.
   - package-ecosystem: github-actions
