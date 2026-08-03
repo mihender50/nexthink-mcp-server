@@ -91,18 +91,21 @@ the publish job declares `environment: prod`. The workflow's
 `NPM_TOKEN` secret, nothing to rotate, and a leaked CI log can't leak a
 credential.
 
-**Provenance is not currently produced.** A provenance attestation has to be
-publicly verifiable against a public source repository, and this repo is
-private — `nexthink-mcp-server@2.0.0` on the registry has `attestations: null`
-and `/-/npm/v1/attestations/nexthink-mcp-server@2.0.0` returns 404. Publishing
-still works; only the attestation is unavailable. Making the repository public
-is what would enable it.
+**Provenance** requires an attestation that is publicly verifiable against a
+public source repository. Now that this repository is public, npm produces one
+automatically on a Trusted Publishing release. Versions published before that
+do not have one — `nexthink-mcp-server@2.0.0` has `attestations: null`, and
+`/-/npm/v1/attestations/nexthink-mcp-server@2.0.0` returns 404.
 
-Note also that `2.0.0` was published **manually**, not by this workflow: the
-GitHub Release was created about 40 minutes before `publish.yml` first landed
-on `main`, and the Actions history contains no Publish runs. The next release
-will be this workflow's first real execution — expect to verify the `prod`
-environment and the npm Trusted Publisher configuration on the first attempt.
+The dist-tag is derived from the Release itself: a GitHub Release marked as a
+pre-release publishes to `next`, and only a full release moves `latest`. npm
+applies `latest` by default and does not special-case a semver pre-release
+suffix, so this has to be explicit.
+
+Note that `2.0.0` was published **manually**, not by this workflow — its
+GitHub Release predates `publish.yml` landing on `main`. The workflow's first
+execution was the `3.0.0-rc.0` pre-release, which published successfully over
+OIDC; the registry records its `_npmUser` as `GitHub Actions`.
 
 If the trusted-publisher config changes on npmjs.com (repo, workflow filename,
 or environment name), `publish.yml` must be updated to match.

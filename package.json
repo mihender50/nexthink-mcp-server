@@ -7,7 +7,7 @@
     "type": "git",
     "url": "git+https://github.com/mihender50/nexthink-mcp-server.git"
   },
-  "homepage": "https://www.npmjs.com/package/nexthink-mcp-server",
+  "homepage": "https://github.com/mihender50/nexthink-mcp-server#readme",
   "bugs": {
     "url": "https://github.com/mihender50/nexthink-mcp-server/issues"
   },
