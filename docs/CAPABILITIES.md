@@ -1,17 +1,31 @@
 # Capability Matrix — nexthink-mcp-server
 
-Snapshot of what this server (v2.0.0) exposes and implements, grounded in the
+Snapshot of what this server (v3.0.0) exposes and implements, grounded in the
 source. See [`RESEARCH.md`](./RESEARCH.md) for the spec/API findings behind it.
+
+## The NQL constraint that shapes everything
+
+The Nexthink NQL API executes **saved queries by id** — there is no endpoint
+that accepts ad-hoc NQL text, and none that enumerates the saved queries. An
+administrator authors each query in the web UI (Administration → Content
+management → NQL API queries), which assigns an immutable Query ID matching
+`^#[a-z0-9_]{2,255}$`; the API then replays it, substituting only the
+`where`-clause parameters that query declares.
+
+So this server lets an agent **run a catalog, not compose queries**. Row limits,
+time windows and projections are fixed in the saved query. Plan integrations
+around a curated set of query ids, and expect to add a saved query whenever a
+genuinely new question comes up.
 
 ## Tools
 
 | Tool | R/W | MCP annotations | Key inputs | Structured output | Nexthink call |
 | --- | --- | --- | --- | --- | --- |
-| `execute_nql` | read | `readOnlyHint`, `openWorldHint` | `query`, `limit?` (1–1000) | `total_rows`, `results[]`, `query_id?`, `executed_query?`, `execution_datetime?` | `POST /api/v2/nql/execute` |
-| `export_nql_async` | read | `readOnlyHint`, `openWorldHint` | `query` | `export_id`, `status`, `raw?` | `POST /api/v1/nql/export` |
-| `get_nql_export_status` | read | `readOnlyHint`, `openWorldHint` | `export_id` | `result` (status + download URL) | `GET /api/v1/nql/status/{id}` |
-| `run_remote_action` | **write** | `destructiveHint`, `openWorldHint` | `remote_action_id`, `devices[]` (Collector ids), `params?`, `expires_in_minutes?`, `trigger_info?` | `execution_id`, `status`, `target_count`, `raw?` | `POST /api/v1/act/execute` |
-| `trigger_workflow` | **write** | `destructiveHint`, `openWorldHint` | `workflow_id`, `params?`, `devices?` | `execution_id`, `status`, `raw?` | `POST /api/v1/workflows/execute` |
+| `execute_nql` | read | `readOnlyHint`, `openWorldHint` | `query_id`, `parameters?`, `max_rows?` (1–1000, client-side) | `total_rows`, `results[]`, `truncated?`, `query_id?`, `executed_query?`, `execution_datetime?` | `POST /api/v2/nql/execute` |
+| `export_nql_async` | read | `readOnlyHint`, `openWorldHint` | `query_id`, `parameters?`, `compression?` | `export_id`, `raw?` | `POST /api/v1/nql/export` |
+| `get_nql_export_status` | read | `readOnlyHint`, `openWorldHint` | `export_id` | `status`, `results_file_url?`, `error_description?`, `raw?` | `GET /api/v1/nql/status/{id}` |
+| `run_remote_action` | **write** | `destructiveHint`, `openWorldHint` | `remote_action_id`, `devices[]` (Collector ids, ≤10000), `params?`, `expires_in_minutes?` (60–10080), `trigger_info?` | `request_id`, `target_count`, `expires_in_minutes?`, `raw?` | `POST /api/v1/act/execute` |
+| `trigger_workflow` | **write** | `destructiveHint`, `openWorldHint` | `workflow_id`, `devices?` / `users?` (≥1 target, ≤10000 each), `params?` | `request_uuid`, `execution_uuids[]`, `target_count`, `raw?` | `POST /api/v1/workflows/execute` |
 
 Write tools are hidden entirely when `NEXTHINK_READ_ONLY=true`.
 
@@ -19,7 +33,7 @@ Write tools are hidden entirely when `NEXTHINK_READ_ONLY=true`.
 
 | URI | Type | Content |
 | --- | --- | --- |
-| `nexthink://schema/nql-reference` | static, `text/markdown` | NQL syntax, domains, time clauses, `device.collector.id` tip |
+| `nexthink://schema/nql-reference` | static, `text/markdown` | The saved-query-by-id execution model, parameter binding, plus NQL syntax, domains, time clauses, `device.collector.id` tip |
 
 ## Authentication (`NEXTHINK_AUTH_TYPE`)
 
@@ -42,6 +56,16 @@ Write tools are hidden entirely when `NEXTHINK_READ_ONLY=true`.
 | Structured logging | ✅ | Single-line JSON to **stderr**, secret redaction |
 | Region-aware URL derivation | ✅ | `us`/`eu`/`pac`/`meta` → `*.api.<region>...` + `<instance>-login...` |
 | NQL v1 (tabular) + v2 (objects) normalization | ✅ | Transparent in the transformer |
+| Query id validation before dispatch | ✅ | Rejects non-conforming ids (notably NQL text) locally with a message explaining the saved-query model, instead of an opaque 400 |
+| Request/response contract tests | ✅ | `test/client.test.ts` pins the exact wire JSON against the published API models; `test/smoke.mjs` pins the advertised tool schemas |
+
+### Verification status
+
+Contracts are implemented from Nexthink's published API models and corroborated
+by independent community SDKs — **not** from calls against a live tenant. There
+is no integration test here that touches real Nexthink infrastructure, so treat
+undocumented behaviour (error-body shapes, rate limits) as unconfirmed and
+validate against your own instance before relying on it.
 
 ## Guardrails & config
 

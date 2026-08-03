@@ -145,3 +145,69 @@ test("does not retry a 400 and surfaces the body for self-correction", async () 
     }
   );
 });
+
+// ---- non-idempotent requests are never replayed ---------------------------
+// A 5xx or a dropped connection does not tell us the server declined to act,
+// so replaying POST /act/execute can run a script on real devices twice.
+
+test("counts attempts: idempotent retries, non-idempotent does not", async () => {
+  // Same server, same 503, only the flag differs.
+  for (const [idempotent, expected] of [
+    [true, 4], // 1 initial + maxRetries(3)
+    [false, 1],
+  ] as Array<[boolean, number]>) {
+    let hits = 0;
+    const server = http.createServer((_req, res) => {
+      hits++;
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end("{}");
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    const port = (server.address() as AddressInfo).port;
+    try {
+      const client = new NexthinkHttp(
+        cfg(`http://127.0.0.1:${port}`),
+        { getHeaders: async () => ({}), invalidate: () => {} },
+        new Logger("error"),
+        () => 0
+      );
+      await assert.rejects(() =>
+        client.request({
+          method: "POST",
+          path: "/api/v1/act/execute",
+          body: {},
+          context: "Remote Action execute",
+          idempotent,
+        })
+      );
+      assert.equal(hits, expected, `idempotent=${idempotent} should issue ${expected} request(s)`);
+    } finally {
+      server.close();
+    }
+  }
+});
+
+test("omitting the flag keeps the default retry behaviour", async () => {
+  let hits = 0;
+  const server = http.createServer((_req, res) => {
+    hits++;
+    res.writeHead(503);
+    res.end("{}");
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const port = (server.address() as AddressInfo).port;
+  try {
+    const client = new NexthinkHttp(
+      cfg(`http://127.0.0.1:${port}`),
+      { getHeaders: async () => ({}), invalidate: () => {} },
+      new Logger("error"),
+      () => 0
+    );
+    await assert.rejects(() =>
+      client.request({ method: "POST", path: "/api/v2/nql/execute", body: {}, context: "NQL execute" })
+    );
+    assert.equal(hits, 4, "default is idempotent: 1 initial + 3 retries");
+  } finally {
+    server.close();
+  }
+});

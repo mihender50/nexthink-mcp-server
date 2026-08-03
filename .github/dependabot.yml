@@ -1,0 +1,30 @@
+version: 2
+
+updates:
+  # Runtime and build dependencies. The package ships compiled output, so a
+  # transitive advisory in axios or the MCP SDK reaches consumers directly.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Patch/minor churn lands as one PR; majors stay separate so a breaking
+      # SDK or TypeScript bump gets reviewed on its own.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(dev-deps)
+
+  # Actions are pinned by major tag (actions/checkout@v4); this keeps them
+  # current and surfaces advisories in the publish pipeline, which holds
+  # id-token: write.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore(ci)

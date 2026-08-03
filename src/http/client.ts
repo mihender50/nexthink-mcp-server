@@ -37,8 +37,17 @@ export interface RequestOptions {
   method: "GET" | "POST";
   path: string;
   body?: unknown;
-  /** Overrides the retry budget for this call (defaults to config). */
   context: string; // short label for error/log messages
+  /**
+   * Whether replaying this request is harmless. Defaults to `true`.
+   *
+   * Set `false` for calls that cause an irreversible side effect — triggering
+   * a Remote Action or a workflow. A 5xx or a dropped connection does **not**
+   * tell us the server declined to act, so retrying can run a script on real
+   * devices a second time. For those, one attempt and an honest error beats a
+   * silent duplicate execution.
+   */
+  idempotent?: boolean;
 }
 
 /**
@@ -112,7 +121,12 @@ export class NexthinkHttp {
         });
       }
 
-      const retryable = networkError !== null || isRetryableStatus(status);
+      // A non-idempotent call is never replayed: after a 5xx or a dropped
+      // connection we cannot know whether the side effect already happened.
+      // (The 401 path above is exempt and still retries — an unauthenticated
+      // request was rejected before it could act.)
+      const replayable = opts.idempotent !== false;
+      const retryable = replayable && (networkError !== null || isRetryableStatus(status));
       if (retryable && attempt < maxRetries) {
         const backoff = retryAfterMs ?? computeBackoffMs(attempt, this.config.retry, this.rand);
         this.logger.warn("Retrying request after backoff", {

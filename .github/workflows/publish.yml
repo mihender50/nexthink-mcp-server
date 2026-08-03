@@ -6,7 +6,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # npm provenance attestation via GitHub OIDC
+  id-token: write # OIDC token for npm Trusted Publishing
 
 jobs:
   publish:
@@ -52,6 +52,10 @@ jobs:
 
       # Auth is npm Trusted Publishing (GitHub OIDC) — no token secret.
       # Requires npm >= 11.5.1 (Node 24 bundles a compatible npm) and the
-      # id-token: write permission above. Provenance is attested automatically.
+      # id-token: write permission above.
+      #
+      # NOTE: a provenance attestation requires a PUBLIC source repository.
+      # It is produced automatically when this repo is public, and silently
+      # unavailable while it is private. See CONTRIBUTING.md.
       - name: Publish
         run: npm publish --access public

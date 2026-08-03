@@ -1,0 +1,87 @@
+name: Bug report
+description: Something the server does wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before filing:** the Nexthink API executes **saved queries by ID**, not
+        ad-hoc NQL text. If `execute_nql` returns HTTP 400, first confirm your
+        `query_id` matches `^#[a-z0-9_]{2,255}$` and names a query that exists
+        under *Administration → Content management → NQL API queries*. That is
+        expected behaviour, not a bug.
+
+        **Never paste credentials**, tokens, or full `debug` logs. Redact
+        instance names and device ids if they are sensitive.
+
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: "`npm ls nexthink-mcp-server`, or the version in your MCP client config"
+      placeholder: 3.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Which tool
+      options:
+        - execute_nql
+        - export_nql_async
+        - get_nql_export_status
+        - run_remote_action
+        - trigger_workflow
+        - Not tool-specific (startup, auth, config)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: auth
+    attributes:
+      label: NEXTHINK_AUTH_TYPE
+      options: [oauth2_basic, oauth2_post, bearer, basic]
+    validations:
+      required: true
+
+  - type: input
+    id: region
+    attributes:
+      label: Region
+      description: The value of NEXTHINK_REGION, or "custom base URL" if you set NEXTHINK_API_BASE_URL
+      placeholder: eu
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you called, what you expected, what you got. Include the tool error text verbatim if there was one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: response
+    attributes:
+      label: Relevant response or log output
+      description: >
+        Redacted. If this is a data-shape problem, the raw Nexthink response
+        body is the single most useful thing you can attach — most bugs in this
+        package have been response-shape mismatches.
+      render: json
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      placeholder: v24.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: client
+    attributes:
+      label: MCP client
+      placeholder: Claude Desktop 1.2.3 / custom stdio client

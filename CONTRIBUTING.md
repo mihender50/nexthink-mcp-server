@@ -87,9 +87,22 @@ configured (npmjs.com → package → Settings → Trusted Publisher) to accept
 publishes only from GitHub Actions runs of `publish.yml` in
 `mihender50/nexthink-mcp-server` using the `prod` environment — which is why
 the publish job declares `environment: prod`. The workflow's
-`id-token: write` permission lets npm verify the run's OIDC token, and npm
-attaches a provenance attestation automatically. There is no `NPM_TOKEN`
-secret, nothing to rotate, and a leaked CI log can't leak a credential.
+`id-token: write` permission lets npm verify the run's OIDC token. There is no
+`NPM_TOKEN` secret, nothing to rotate, and a leaked CI log can't leak a
+credential.
+
+**Provenance is not currently produced.** A provenance attestation has to be
+publicly verifiable against a public source repository, and this repo is
+private — `nexthink-mcp-server@2.0.0` on the registry has `attestations: null`
+and `/-/npm/v1/attestations/nexthink-mcp-server@2.0.0` returns 404. Publishing
+still works; only the attestation is unavailable. Making the repository public
+is what would enable it.
+
+Note also that `2.0.0` was published **manually**, not by this workflow: the
+GitHub Release was created about 40 minutes before `publish.yml` first landed
+on `main`, and the Actions history contains no Publish runs. The next release
+will be this workflow's first real execution — expect to verify the `prod`
+environment and the npm Trusted Publisher configuration on the first attempt.
 
 If the trusted-publisher config changes on npmjs.com (repo, workflow filename,
 or environment name), `publish.yml` must be updated to match.

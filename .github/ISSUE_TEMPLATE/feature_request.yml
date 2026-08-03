@@ -1,0 +1,41 @@
+name: Feature request
+description: Propose a capability or change
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Requests bounded by the Nexthink API are the ones most likely to land.
+        Anything requiring ad-hoc NQL execution is not implementable — the
+        public API has no endpoint for it.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you solving
+      description: The situation you're in, not the solution you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd like
+      description: >
+        If this maps to a documented Nexthink endpoint, link the docs page —
+        contracts here are implemented from published API models, so a citation
+        turns a request into something directly actionable.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: destructive
+    attributes:
+      label: Would this change state on real endpoints?
+      description: Anything that triggers actions on devices or affects users needs a destructiveHint annotation and human-in-the-loop gating.
+      options:
+        - "No — read-only"
+        - "Yes — mutating"
+        - Not sure
+    validations:
+      required: true

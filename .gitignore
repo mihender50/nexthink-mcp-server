@@ -5,3 +5,8 @@ dist/
 .env.local
 .DS_Store
 coverage/
+
+# Local agent/automation tooling. Kept on developer machines, deliberately not
+# versioned here: it is workspace scaffolding, not part of this package, and
+# carries per-operator state that has no business in a public repository.
+.squad/

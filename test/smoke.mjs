@@ -43,12 +43,28 @@ const baseEnv = {
   assert.equal(nql.annotations?.readOnlyHint, true);
   assert.ok(nql.outputSchema, "execute_nql has outputSchema");
 
+  // The NQL API executes SAVED queries by id; it has no ad-hoc-NQL endpoint.
+  // Advertising a `query` input would send models down a path that always 400s,
+  // so pin the declared contract for both NQL tools.
+  for (const name of ["execute_nql", "export_nql_async"]) {
+    const tool = tools.find((t) => t.name === name);
+    const props = tool.inputSchema?.properties ?? {};
+    assert.ok(props.query_id, `${name} takes query_id`);
+    assert.equal(props.query, undefined, `${name} must not advertise free-form query text`);
+    assert.deepEqual(tool.inputSchema.required, ["query_id"]);
+    assert.match(tool.description, /saved in the Nexthink web UI/);
+  }
+  assert.equal(nql.inputSchema.properties.limit, undefined, "server-side limit is not a thing");
+  assert.ok(nql.inputSchema.properties.parameters, "execute_nql takes parameters");
+
   const { resources } = await client.listResources();
   assert.ok(resources.some((r) => r.uri === "nexthink://schema/nql-reference"));
   const read = await client.readResource({ uri: "nexthink://schema/nql-reference" });
   assert.match(read.contents[0].text, /NQL/);
+  assert.match(read.contents[0].text, /cannot execute ad-hoc NQL/);
   await client.close();
   console.log("OK: read-write mode exposes 5 tools + resource, schemas & annotations present");
+  console.log("OK: NQL tools advertise saved-query ids, not free-form NQL text");
 }
 
 // Read-only mode: mutating tools hidden.
