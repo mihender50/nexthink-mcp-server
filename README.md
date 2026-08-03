@@ -1,6 +1,7 @@
 # Nexthink MCP Server
 
 [![CI](https://github.com/mihender50/nexthink-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/mihender50/nexthink-mcp-server/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/nexthink-mcp-server)](https://www.npmjs.com/package/nexthink-mcp-server)
 
 An **enterprise-grade** [Model Context Protocol](https://modelcontextprotocol.io)
 (MCP) server that exposes **Nexthink** Digital Employee Experience (DEX)
@@ -90,23 +91,18 @@ See [`.env.example`](./.env.example) for the full annotated list. Essentials:
 
 ¹ Provide **either** `NEXTHINK_INSTANCE`+`NEXTHINK_REGION` **or** `NEXTHINK_API_BASE_URL`.
 
-## Install, build, run
+## Quick start
 
-```bash
-npm install
-npm run build
-npm start          # reads config from the environment
-npm run dev        # ts, no build step
-```
-
-### Register with an MCP client (Claude Desktop)
+Published on [npm](https://www.npmjs.com/package/nexthink-mcp-server) — no
+clone or build needed. Register it with an MCP client (Claude Desktop shown;
+any stdio MCP client works the same way):
 
 ```json
 {
   "mcpServers": {
     "nexthink": {
-      "command": "node",
-      "args": ["/abs/path/to/nexthink-mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "nexthink-mcp-server"],
       "env": {
         "NEXTHINK_INSTANCE": "your-instance",
         "NEXTHINK_REGION": "eu",
@@ -117,6 +113,19 @@ npm run dev        # ts, no build step
     }
   }
 }
+```
+
+Requires Node.js ≥ 22 on the machine running the client. Running from a
+checkout instead? Use `"command": "node"` with
+`"args": ["/abs/path/to/nexthink-mcp-server/dist/index.js"]`.
+
+## Development
+
+```bash
+npm install
+npm run build
+npm start          # reads config from the environment
+npm run dev        # ts, no build step
 ```
 
 ## Test
