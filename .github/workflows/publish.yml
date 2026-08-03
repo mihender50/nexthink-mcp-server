@@ -57,5 +57,12 @@ jobs:
       # NOTE: a provenance attestation requires a PUBLIC source repository.
       # It is produced automatically when this repo is public, and silently
       # unavailable while it is private. See CONTRIBUTING.md.
+      #
+      # npm applies the "latest" dist-tag by default, regardless of a semver
+      # pre-release suffix. Without this a pre-release would become the version
+      # `npx nexthink-mcp-server` serves to everyone, so pre-releases go to
+      # "next" and only a full release moves "latest".
       - name: Publish
-        run: npm publish --access public
+        run: npm publish --access public --tag "$NPM_DIST_TAG"
+        env:
+          NPM_DIST_TAG: ${{ github.event.release.prerelease && 'next' || 'latest' }}
