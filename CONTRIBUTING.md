@@ -70,6 +70,30 @@ docs/RESEARCH.md       sourced MCP/Nexthink findings behind the design
 - Conventional-Commits-style messages (`feat:`, `fix:`, `chore:`, `docs:`…) and
   a `CHANGELOG.md` entry for user-visible changes.
 
+## Releasing
+
+Publishing to npm is fully automated — no npm token exists in CI.
+
+1. Bump `version` in `package.json` and add a `CHANGELOG.md` entry; land it on
+   `main` via PR (branch protection requires the CI checks).
+2. Create a GitHub release with tag `vX.Y.Z` (must match `package.json` —
+   the workflow hard-fails on a mismatch) targeting `main`.
+3. Publishing the release triggers `.github/workflows/publish.yml`, which
+   re-runs the full gate (typecheck, build, tests, stdio smoke test) and then
+   runs `npm publish`.
+
+Auth is **npm Trusted Publishing** (OpenID Connect): the npm package is
+configured (npmjs.com → package → Settings → Trusted Publisher) to accept
+publishes only from GitHub Actions runs of `publish.yml` in
+`mihender50/nexthink-mcp-server` using the `prod` environment — which is why
+the publish job declares `environment: prod`. The workflow's
+`id-token: write` permission lets npm verify the run's OIDC token, and npm
+attaches a provenance attestation automatically. There is no `NPM_TOKEN`
+secret, nothing to rotate, and a leaked CI log can't leak a credential.
+
+If the trusted-publisher config changes on npmjs.com (repo, workflow filename,
+or environment name), `publish.yml` must be updated to match.
+
 ## Vendored `.squad/`
 
 The `.squad/` directory is a vendored framework copied from the fleet and is

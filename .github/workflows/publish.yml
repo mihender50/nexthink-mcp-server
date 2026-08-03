@@ -12,6 +12,9 @@ jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
+    # Must match the environment configured in the npm Trusted Publisher
+    # (npmjs.com -> nexthink-mcp-server -> Settings -> Trusted Publisher).
+    environment: prod
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,7 +50,8 @@ jobs:
       - name: Smoke test (stdio MCP handshake)
         run: node test/smoke.mjs
 
+      # Auth is npm Trusted Publishing (GitHub OIDC) — no token secret.
+      # Requires npm >= 11.5.1 (Node 24 bundles a compatible npm) and the
+      # id-token: write permission above. Provenance is attested automatically.
       - name: Publish
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
