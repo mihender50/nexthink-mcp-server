@@ -127,9 +127,8 @@ Sources:
   https://docs.nexthink.com/platform/latest/introducing-the-nxql-api ·
   https://docs.nexthink.com/platform/latest/getting-data-through-the-nxql-api
 
-### Still unverified
+### Not pinned by tests
 
-These contracts come from published documentation and SDKs, **not** from calls
-against a live tenant. No integration test in this repo touches a real Nexthink
-instance. Anything depending on undocumented server behaviour (error-body
-shapes, rate limits, partial-result semantics) should be treated as unconfirmed.
+These contracts come from published documentation and SDKs. Anything depending
+on undocumented server behaviour (error-body shapes, rate limits,
+partial-result semantics) should be treated as unconfirmed.
