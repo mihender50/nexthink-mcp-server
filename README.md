@@ -2,11 +2,10 @@
 
 [![npm version](https://img.shields.io/npm/v/nexthink-mcp-server)](https://www.npmjs.com/package/nexthink-mcp-server)
 
-An **enterprise-grade** [Model Context Protocol](https://modelcontextprotocol.io)
-(MCP) server that exposes **Nexthink** Digital Employee Experience (DEX)
-telemetry and automation to LLM agents. Built against the **MCP `2025-11-25`**
-stable spec (structured tool output, tool annotations, resources) on
-`@modelcontextprotocol/sdk` v1.30.
+A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that
+exposes Nexthink Digital Employee Experience (DEX) telemetry and automation to
+LLM agents. Built against the MCP `2025-11-25` stable spec (structured tool
+output, tool annotations, resources) on `@modelcontextprotocol/sdk` v1.30.
 
 ```
 +-------------------+   MCP (JSON-RPC / stdio)   +-------------------------+   OAuth2 / Bearer / Basic   +-----------------------------+
@@ -15,32 +14,30 @@ stable spec (structured tool output, tool annotations, resources) on
 +-------------------+                            +-------------------------+                             +-----------------------------+
 ```
 
-## Why this is production-ready
+## What it does
 
-- **All Nexthink auth types**, pluggable via one env var — OAuth2 client
-  credentials (Basic-header *and* form-body), pre-issued bearer, and legacy HTTP
-  Basic. See [Authentication](#authentication).
-- **Fast**: in-memory OAuth token cache with proactive refresh and a
-  **single-flight** guard so concurrent tool calls never stampede the token
+- **Authentication** — all four Nexthink credential forms, selected by one env
+  var: OAuth2 client credentials (Basic-header and form-body), pre-issued
+  bearer, and legacy HTTP Basic. See [Authentication](#authentication).
+- **Token handling** — in-memory OAuth token cache with proactive refresh and a
+  single-flight guard, so concurrent tool calls don't stampede the token
   endpoint.
-- **Reliable**: automatic retries on `429`/`5xx`/network errors with
-  **full-jitter exponential backoff**, `Retry-After` honoring, per-request
-  timeouts, and a one-shot **401 → token-refresh → retry**. `4xx` (e.g. an
-  unknown query id) is *not* retried — the error body is surfaced back to the
-  model for self-correction.
-- **Structured output**: every tool declares a Zod `outputSchema` and returns
-  validated `structuredContent` (plus a JSON text fallback).
-- **Safe by default**: `destructiveHint` annotations for human-in-the-loop
-  gating, an optional read-only mode, and a Remote Action allow-list.
-- **Observable**: structured single-line JSON logs to **stderr** (never stdout),
-  with automatic secret redaction.
-- **Region-aware**: derives the correct `*.api.<region>.nexthink.cloud` base and
+- **Retries** — `429`/`5xx`/network errors retry with full-jitter exponential
+  backoff, honoring `Retry-After`, alongside per-request timeouts and a one-shot
+  401 → token-refresh → retry. `4xx` (e.g. an unknown query id) is not retried;
+  the error body is surfaced back to the model for self-correction.
+- **Structured output** — every tool declares a Zod `outputSchema` and returns
+  validated `structuredContent`, with a JSON text fallback.
+- **Guardrails** — `destructiveHint` annotations for human-in-the-loop gating,
+  an optional read-only mode, and a Remote Action allow-list.
+- **Logging** — single-line JSON to stderr (never stdout), with secret
+  redaction.
+- **Region handling** — derives the `*.api.<region>.nexthink.cloud` base and
   `<instance>-login.<region>...` token endpoint from instance + region.
 
 ## Documentation
 
-The source repository is private, so everything referenced here either ships
-**inside this package** or is a public URL — no links to places you can't reach.
+Everything referenced here either ships inside this package or is a public URL.
 
 Shipped in the package, alongside `dist/`:
 
@@ -235,7 +232,7 @@ src/
 The request path per tool call: **auth provider → HTTP client (retry) → domain
 client → normalized result → structured tool output**.
 
-## Verification status
+## API references
 
 API contracts here are implemented from Nexthink's published API models
 (`NqlApiExecuteRequest`, `NqlApiExportRequest`, `NqlApiStatusResponse`, and the
@@ -248,9 +245,9 @@ cross-checked against two independent community SDKs. Primary sources:
 - Authoring NQL API queries — <https://docs.nexthink.com/platform/user-guide/administration/content-management/nql-api-queries>
 - Remote actions API — <https://docs.nexthink.com/API/remote-actions/remote-actions-api>
 
-They have **not** been exercised against a live Nexthink tenant, and no test in
-this package touches real Nexthink infrastructure. Validate against your own
-instance before relying on this in production.
+Roll out against a non-production instance first, and start with
+`NEXTHINK_READ_ONLY=true` so the destructive tools stay hidden until the read
+path is confirmed against your tenant.
 
 Scope note: this server targets **Nexthink Infinity cloud** (`NQL`). The older
 on-prem V6 Engine exposes a separate, deprecated **NXQL** API that does accept
