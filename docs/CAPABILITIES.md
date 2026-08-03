@@ -44,7 +44,7 @@ Write tools are hidden entirely when `NEXTHINK_READ_ONLY=true`.
 | Static bearer | `bearer` | pre-issued token | `Authorization: Bearer` | none (static) | — |
 | HTTP Basic | `basic` | username + password | `Authorization: Basic` | none (static) | — |
 
-## Reliability / enterprise features
+## Reliability
 
 | Capability | Status | Detail |
 | --- | --- | --- |
@@ -59,13 +59,13 @@ Write tools are hidden entirely when `NEXTHINK_READ_ONLY=true`.
 | Query id validation before dispatch | ✅ | Rejects non-conforming ids (notably NQL text) locally with a message explaining the saved-query model, instead of an opaque 400 |
 | Request/response contract tests | ✅ | `test/client.test.ts` pins the exact wire JSON against the published API models; `test/smoke.mjs` pins the advertised tool schemas |
 
-### Verification status
+### Contract sources
 
 Contracts are implemented from Nexthink's published API models and corroborated
-by independent community SDKs — **not** from calls against a live tenant. There
-is no integration test here that touches real Nexthink infrastructure, so treat
-undocumented behaviour (error-body shapes, rate limits) as unconfirmed and
-validate against your own instance before relying on it.
+by independent community SDKs. Behaviour the vendor does not document —
+error-body shapes, rate limits — is not pinned by these tests, so validate it
+against your own instance, starting with `NEXTHINK_READ_ONLY=true` before the
+write tools are enabled.
 
 ## Guardrails & config
 
